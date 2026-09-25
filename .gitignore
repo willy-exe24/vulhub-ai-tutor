@@ -1,0 +1,27 @@
+# Python
+backend/.venv/
+__pycache__/
+*.pyc
+
+# Backend data / secrets
+backend/data/
+backend/.env
+backend/server.log
+
+# Node / frontend (added when the frontend scaffold lands)
+frontend/node_modules/
+frontend/dist/
+
+# Vulhub checkout (cloned separately per machine; not part of this repo)
+/vulhub/
+
+# Source UI repo (github.com/willy-exe24/vulhub-ai-tutor-dashboard) — components
+# have been ported into frontend/src; kept here only as local reference.
+/vulhub-ai-tutor-dashboard/
+
+# Claude Code local state
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
