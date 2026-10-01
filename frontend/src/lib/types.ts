@@ -5,6 +5,7 @@ export interface Lab {
   product: string
   category: string | null
   difficulty: string | null
+  description: string | null
   folder_path: string
   readme_path: string | null
   compose_path: string

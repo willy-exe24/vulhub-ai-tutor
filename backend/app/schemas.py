@@ -13,6 +13,7 @@ class LabOut(BaseModel):
     product: str
     category: str | None
     difficulty: str | None
+    description: str | None
     folder_path: str
     readme_path: str | None
     compose_path: str

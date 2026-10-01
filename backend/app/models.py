@@ -21,6 +21,7 @@ class Lab(Base):
     product: Mapped[str] = mapped_column(String, index=True)
     category: Mapped[str | None] = mapped_column(String, nullable=True)
     difficulty: Mapped[str | None] = mapped_column(String, nullable=True)
+    description: Mapped[str | None] = mapped_column(String, nullable=True)
     folder_path: Mapped[str] = mapped_column(String, unique=True)
     readme_path: Mapped[str | None] = mapped_column(String, nullable=True)
     compose_path: Mapped[str] = mapped_column(String)

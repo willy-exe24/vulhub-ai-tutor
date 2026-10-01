@@ -11,7 +11,10 @@ export function LabBrowser() {
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState(() => searchParams.get('search') ?? '')
   const [product, setProduct] = useState('')
+  const [difficulty, setDifficulty] = useState('')
   const [rescanning, setRescanning] = useState(false)
+
+  const DIFFICULTIES = ['Beginner', 'Intermediate', 'Advanced']
 
   function load() {
     setLoading(true)
@@ -50,14 +53,17 @@ export function LabBrowser() {
     const term = search.trim().toLowerCase()
     return labs.filter((lab) => {
       if (product && lab.product !== product) return false
+      if (difficulty && lab.difficulty !== difficulty) return false
       if (!term) return true
       return (
         lab.name.toLowerCase().includes(term) ||
         lab.product.toLowerCase().includes(term) ||
-        (lab.cve ?? '').toLowerCase().includes(term)
+        (lab.cve ?? '').toLowerCase().includes(term) ||
+        (lab.category ?? '').toLowerCase().includes(term) ||
+        (lab.description ?? '').toLowerCase().includes(term)
       )
     })
-  }, [labs, search, product])
+  }, [labs, search, product, difficulty])
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
@@ -88,6 +94,18 @@ export function LabBrowser() {
           {products.map((p) => (
             <option key={p} value={p}>
               {p}
+            </option>
+          ))}
+        </select>
+        <select
+          value={difficulty}
+          onChange={(e) => setDifficulty(e.target.value)}
+          className="rounded border border-slate-700 bg-slate-900 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none"
+        >
+          <option value="">All difficulties</option>
+          {DIFFICULTIES.map((d) => (
+            <option key={d} value={d}>
+              {d}
             </option>
           ))}
         </select>

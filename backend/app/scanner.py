@@ -55,12 +55,81 @@ def infer_category(readme_text: str | None) -> str | None:
     return None
 
 
+# Best-effort difficulty, derived from the inferred category. Vulhub doesn't
+# label difficulty either, so like the category this is a heuristic, not an
+# authoritative rating — roughly: how much chained effort a typical exploit of
+# this bug class takes. Unknown/unmapped categories default to Intermediate.
+_DIFFICULTY_BY_CATEGORY: dict[str, str] = {
+    "Information Disclosure": "Beginner",
+    "Cross-Site Scripting": "Beginner",
+    "Cross-Site Request Forgery": "Beginner",
+    "Path Traversal": "Beginner",
+    "Arbitrary File Read": "Beginner",
+    "Denial of Service": "Beginner",
+    "SQL Injection": "Intermediate",
+    "Command Injection": "Intermediate",
+    "Authentication Bypass": "Intermediate",
+    "Arbitrary File Write": "Intermediate",
+    "Server-Side Request Forgery": "Intermediate",
+    "XML External Entity": "Intermediate",
+    "Remote Code Execution": "Advanced",
+    "Deserialization": "Advanced",
+    "Privilege Escalation": "Advanced",
+}
+
+
+def infer_difficulty(category: str | None) -> str:
+    return _DIFFICULTY_BY_CATEGORY.get(category or "", "Intermediate")
+
+
+_MD_IMAGE = re.compile(r"!\[[^\]]*\]\([^)]*\)")
+_MD_LINK = re.compile(r"\[([^\]]+)\]\([^)]*\)")
+_DESCRIPTION_MAX_CHARS = 240
+
+
+def extract_description(readme_text: str | None, max_chars: int = _DESCRIPTION_MAX_CHARS) -> str | None:
+    """Pull a short plain-text summary from the first real prose paragraph of a
+    lab README (skipping the title, badges, nav links and tables). Best-effort."""
+    if not readme_text:
+        return None
+
+    paragraph: list[str] = []
+    for raw in readme_text.splitlines():
+        line = raw.strip()
+        if not line:
+            if paragraph:
+                break  # blank line ends the first paragraph
+            continue
+        if line.startswith(("#", "![", ">", "|", "[", "<!--", "```", "---", "===")):
+            if paragraph:
+                break
+            continue
+        paragraph.append(line)
+
+    if not paragraph:
+        return None
+
+    text = " ".join(paragraph)
+    text = _MD_IMAGE.sub("", text)
+    text = _MD_LINK.sub(r"\1", text)
+    text = text.replace("`", "").replace("**", "").replace("*", "").replace("_", "")
+    text = re.sub(r"\s+", " ", text).strip()
+    if not text:
+        return None
+
+    if len(text) > max_chars:
+        text = text[:max_chars].rsplit(" ", 1)[0].rstrip(",.;:") + "…"
+    return text
+
+
 @dataclass(frozen=True)
 class DiscoveredLab:
     name: str
     product: str
     cve: str | None
     category: str | None
+    difficulty: str
+    description: str | None
     folder_path: str
     readme_path: str | None
     compose_path: str
@@ -96,12 +165,15 @@ def scan_bundled_library(library_root: Path) -> list[DiscoveredLab]:
             if readme_path is not None:
                 readme_text = readme_path.read_text(encoding="utf-8", errors="ignore")
 
+            category = infer_category(readme_text)
             labs.append(
                 DiscoveredLab(
                     name=lab_dir.name,
                     product=product_dir.name,
                     cve=cve_match.group(0).upper() if cve_match else None,
-                    category=infer_category(readme_text),
+                    category=category,
+                    difficulty=infer_difficulty(category),
+                    description=extract_description(readme_text),
                     folder_path=str(lab_dir.resolve()),
                     readme_path=str(readme_path.resolve()) if readme_path else None,
                     compose_path=str(compose_path.resolve()),
@@ -135,6 +207,8 @@ def sync_discovered_labs(db: Session, discovered: list[DiscoveredLab]) -> SyncRe
                     product=found.product,
                     cve=found.cve,
                     category=found.category,
+                    difficulty=found.difficulty,
+                    description=found.description,
                     folder_path=found.folder_path,
                     readme_path=found.readme_path,
                     compose_path=found.compose_path,
@@ -147,6 +221,8 @@ def sync_discovered_labs(db: Session, discovered: list[DiscoveredLab]) -> SyncRe
                 or row.product != found.product
                 or row.cve != found.cve
                 or row.category != found.category
+                or row.difficulty != found.difficulty
+                or row.description != found.description
                 or row.readme_path != found.readme_path
                 or row.compose_path != found.compose_path
             )
@@ -155,6 +231,8 @@ def sync_discovered_labs(db: Session, discovered: list[DiscoveredLab]) -> SyncRe
                 row.product = found.product
                 row.cve = found.cve
                 row.category = found.category
+                row.difficulty = found.difficulty
+                row.description = found.description
                 row.readme_path = found.readme_path
                 row.compose_path = found.compose_path
                 updated += 1
